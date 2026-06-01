@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>スイープマスター 修理見積り</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f4f6f8;
+      color: #1f2937;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px; }
+    main {
+      width: min(100%, 620px);
+      margin: 0 auto;
+      padding: 28px;
+      border-radius: 18px;
+      background: #fff;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, .08);
+    }
+    h1 { margin: 0 0 8px; font-size: 24px; }
+    .lead, .note { color: #64748b; }
+    .lead { margin: 0 0 24px; font-size: 14px; }
+    label {
+      display: block;
+      margin-top: 18px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    select {
+      width: 100%;
+      margin-top: 8px;
+      padding: 13px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      background: #fff;
+      font-size: 16px;
+    }
+    .result {
+      margin-top: 26px;
+      padding: 20px;
+      border-radius: 14px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+    }
+    .result-label { margin: 0; color: #1d4ed8; font-size: 14px; font-weight: 700; }
+    .price { margin: 8px 0 4px; color: #1e3a8a; font-size: 36px; font-weight: 800; }
+    .detail { margin: 0; font-size: 14px; line-height: 1.7; }
+    .note { margin: 18px 0 0; font-size: 12px; line-height: 1.7; }
+    button {
+      width: 100%;
+      margin-top: 14px;
+      padding: 12px;
+      border: 0;
+      border-radius: 10px;
+      background: #1d4ed8;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button:hover { background: #1e40af; }
+    .settings-link {
+      display: block;
+      margin-top: 16px;
+      color: #64748b;
+      font-size: 12px;
+      text-align: right;
+    }
+    @media (max-width: 540px) {
+      body { padding: 14px; }
+      main { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>スイープマスター 修理見積り</h1>
+    <p class="lead">機種と症状を選択すると、修理見積りの目安が表示されます。</p>
+
+    <label for="maker">メーカー</label>
+    <select id="maker">
+      <option value="">選択してください</option>
+    </select>
+
+    <label for="model">機種</label>
+    <select id="model" disabled>
+      <option value="">メーカーを選択してください</option>
+    </select>
+
+    <div id="errorCodeField" hidden>
+      <label for="errorCode">エラーコード</label>
+      <select id="errorCode">
+        <option value="">選択してください</option>
+      </select>
+    </div>
+
+    <label for="symptom">症状</label>
+    <select id="symptom" disabled>
+      <option value="">機種を選択してください</option>
+    </select>
+
+    <section class="result" id="result" hidden>
+      <p class="result-label">概算見積り（税込）</p>
+      <p class="price" id="price"></p>
+      <p class="detail" id="detail"></p>
+      <button type="button" id="copyButton">見積り内容をコピー</button>
+    </section>
+
+    <p class="note">※ 金額は初期診断時の概算です。複数箇所の故障、部品の状態、追加作業により変動する場合があります。</p>
+    <a class="settings-link" href="settings.html">料金表の設定</a>
+  </main>
+
+  <script src="config.js"></script>
+  <script>
+    // 仮の料金表です。実際の加盟店向け料金に合わせて金額を変更してください。
+    function makeDysonSymptoms(temporaryPrice, hasDisplay = false) {
+      const symptoms = {
+        "赤ランプ点灯": temporaryPrice,
+        "充電されない": temporaryPrice,
+        "青ランプ点滅しない": temporaryPrice,
+        "充電の減りが早い": temporaryPrice,
+        "フィルター詰まりマークが消えない": temporaryPrice,
+        "ヘッドローラー（ブラシ）が回らない": temporaryPrice,
+        "動作しない（まったく動かない）": temporaryPrice,
+        "動作不良（一瞬動くがすぐ止まる）": temporaryPrice,
+        "吸引力の低下": temporaryPrice,
+        "異臭がする": temporaryPrice
+      };
+      if (hasDisplay) symptoms["液晶が表示されない"] = temporaryPrice;
+      return symptoms;
+    }
+
+    function makeRoombaSymptoms(temporaryPrice) {
+      return {
+        "充電が溜まらない": temporaryPrice,
+        "タイヤが回らない": temporaryPrice,
+        "ホームベースに戻らない": temporaryPrice,
+        "真っ直ぐ進まない": temporaryPrice,
+        "段差判定になる": temporaryPrice,
+        "勢いよく壁にぶつかる": temporaryPrice,
+        "起動しない": temporaryPrice,
+        "バンパーを数回たたいてください": temporaryPrice,
+        "アプリに接続できない": temporaryPrice,
+        "エッジブラシが回らない": temporaryPrice
+      };
+    }
+
+    const ROOMBA_ERROR_CODES = [
+      "不明・該当なし",
+      "エラー7",
+      "エラー8",
+      "エラー9",
+      "エラー10",
+      "エラー11",
+      "エラー12（エラー6）",
+      "エラー13（エラー1、3）",
+      "エラー15",
+      "エラー26",
+      "充電エラー1",
+      "充電エラー3（500～700）",
+      "充電エラー5",
+      "充電エラー8",
+      "充電エラー9"
+    ];
+
+    function makeRoombaErrorPrices(temporaryPrice) {
+      return Object.fromEntries(
+        ROOMBA_ERROR_CODES
+          .filter((errorCode) => errorCode !== "不明・該当なし")
+          .map((errorCode) => [errorCode, temporaryPrice])
+      );
+    }
+
+    const PRICE_LIST = {
+      "ダイソン": {
+        "DC34/35": makeDysonSymptoms(8800),
+        "SV07（Dyson V6 Motorhead / Fluffy+）": makeDysonSymptoms(8800),
+        "SV09（Dyson V6 Absolute）": makeDysonSymptoms(8800),
+        "SV10（Dyson V8）": makeDysonSymptoms(8800),
+        "SV11（Dyson V7）": makeDysonSymptoms(8800),
+        "SV12（Dyson V10）": makeDysonSymptoms(11000),
+        "SV14（Dyson V11）": makeDysonSymptoms(11000, true),
+        "SV15（Dyson V11 Outsize）": makeDysonSymptoms(13200, true),
+        "SV18（Dyson Digital Slim）": makeDysonSymptoms(13200, true),
+        "SV20（Dyson V12 Detect Slim）": makeDysonSymptoms(13200, true),
+        "SV22（Dyson V15 Detect）": makeDysonSymptoms(13200, true)
+      },
+      "ルンバ": {
+        "600・700シリーズ": makeRoombaSymptoms(8800),
+        "800シリーズ": makeRoombaSymptoms(8800),
+        "900シリーズ": makeRoombaSymptoms(8800),
+        "i7・i7+": makeRoombaSymptoms(9900),
+        "i2・i3・e5": makeRoombaSymptoms(9900),
+        "j7・j7+": makeRoombaSymptoms(12100),
+        "s9・s9+": makeRoombaSymptoms(12100),
+        "ルンバコンボ j7+": makeRoombaSymptoms(12100),
+        "ルンバコンボ j9+": makeRoombaSymptoms(12100)
+      }
+    };
+
+    const ROOMBA_ERROR_PRICE_LIST = {
+      "600・700シリーズ": makeRoombaErrorPrices(8800),
+      "800シリーズ": makeRoombaErrorPrices(8800),
+      "900シリーズ": makeRoombaErrorPrices(8800),
+      "i7・i7+": makeRoombaErrorPrices(9900),
+      "i2・i3・e5": makeRoombaErrorPrices(9900),
+      "j7・j7+": makeRoombaErrorPrices(12100),
+      "s9・s9+": makeRoombaErrorPrices(12100),
+      "ルンバコンボ j7+": makeRoombaErrorPrices(12100),
+      "ルンバコンボ j9+": makeRoombaErrorPrices(12100)
+    };
+
+    const makerSelect = document.querySelector("#maker");
+    const modelSelect = document.querySelector("#model");
+    const errorCodeField = document.querySelector("#errorCodeField");
+    const errorCodeSelect = document.querySelector("#errorCode");
+    const symptomSelect = document.querySelector("#symptom");
+    const result = document.querySelector("#result");
+    const price = document.querySelector("#price");
+    const detail = document.querySelector("#detail");
+    const copyButton = document.querySelector("#copyButton");
+    function setOptions(select, options, placeholder) {
+      select.innerHTML = `<option value="">${placeholder}</option>`;
+      options.forEach((option) => {
+        const element = document.createElement("option");
+        element.value = option;
+        element.textContent = option;
+        select.appendChild(element);
+      });
+      select.disabled = options.length === 0;
+    }
+
+    function parseCsv(csv) {
+      const rows = [];
+      let row = [];
+      let value = "";
+      let quoted = false;
+      for (let index = 0; index < csv.length; index += 1) {
+        const character = csv[index];
+        const next = csv[index + 1];
+        if (character === '"' && quoted && next === '"') {
+          value += '"';
+          index += 1;
+        } else if (character === '"') {
+          quoted = !quoted;
+        } else if (character === "," && !quoted) {
+          row.push(value.trim());
+          value = "";
+        } else if ((character === "\n" || character === "\r") && !quoted) {
+          if (character === "\r" && next === "\n") index += 1;
+          row.push(value.trim());
+          if (row.some(Boolean)) rows.push(row);
+          row = [];
+          value = "";
+        } else {
+          value += character;
+        }
+      }
+      row.push(value.trim());
+      if (row.some(Boolean)) rows.push(row);
+      return rows;
+    }
+
+    async function loadSpreadsheetPrices() {
+      const savedUrl = localStorage.getItem("sweepmasterSheetCsvUrl");
+      const csvUrl = savedUrl || window.SWEEPMASTER_CONFIG?.sheetCsvUrl;
+      if (!csvUrl) return;
+      try {
+        const separator = csvUrl.includes("?") ? "&" : "?";
+        const response = await fetch(`${csvUrl}${separator}_=${Date.now()}`, { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const rows = parseCsv(await response.text());
+        rows.slice(1).forEach(([maker, model, type, item, rawPrice]) => {
+          const amount = Number(String(rawPrice).replace(/[,円\s]/g, ""));
+          if (!maker || !model || !type || !item || !Number.isFinite(amount)) return;
+          if (type === "症状" && PRICE_LIST[maker]?.[model]) {
+            PRICE_LIST[maker][model][item] = amount;
+          }
+          if (maker === "ルンバ" && type === "エラーコード" && ROOMBA_ERROR_PRICE_LIST[model]) {
+            ROOMBA_ERROR_PRICE_LIST[model][item] = amount;
+            if (!ROOMBA_ERROR_CODES.includes(item)) ROOMBA_ERROR_CODES.push(item);
+          }
+        });
+        if (makerSelect.value === "ルンバ") {
+          const selectedErrorCode = errorCodeSelect.value;
+          setOptions(errorCodeSelect, ROOMBA_ERROR_CODES, "選択してください");
+          errorCodeSelect.value = selectedErrorCode;
+        }
+        updateEstimate();
+      } catch (error) {
+        console.warn("スプレッドシート料金表を読み込めませんでした。仮料金を使用します。", error);
+      }
+    }
+
+    setOptions(makerSelect, Object.keys(PRICE_LIST), "選択してください");
+
+    makerSelect.addEventListener("change", () => {
+      const models = makerSelect.value ? Object.keys(PRICE_LIST[makerSelect.value]) : [];
+      setOptions(modelSelect, models, "選択してください");
+      setOptions(symptomSelect, [], "機種を選択してください");
+      errorCodeField.hidden = makerSelect.value !== "ルンバ";
+      setOptions(errorCodeSelect, makerSelect.value === "ルンバ" ? ROOMBA_ERROR_CODES : [], "選択してください");
+      result.hidden = true;
+    });
+
+    modelSelect.addEventListener("change", () => {
+      const symptoms = modelSelect.value
+        ? Object.keys(PRICE_LIST[makerSelect.value][modelSelect.value])
+        : [];
+      setOptions(symptomSelect, symptoms, "選択してください");
+      result.hidden = true;
+    });
+
+    function updateEstimate() {
+      const isRoomba = makerSelect.value === "ルンバ";
+      const selectedErrorCode = isRoomba && errorCodeSelect.value !== "不明・該当なし"
+        ? errorCodeSelect.value
+        : "";
+      if (!modelSelect.value || (!symptomSelect.value && !selectedErrorCode)) {
+        result.hidden = true;
+        return;
+      }
+      const amount = selectedErrorCode
+        ? ROOMBA_ERROR_PRICE_LIST[modelSelect.value][selectedErrorCode]
+        : PRICE_LIST[makerSelect.value][modelSelect.value][symptomSelect.value];
+      if (!Number.isFinite(amount)) {
+        result.hidden = true;
+        return;
+      }
+      price.textContent = `${amount.toLocaleString("ja-JP")}円`;
+      const errorCode = isRoomba && errorCodeSelect.value
+        ? ` / ${errorCodeSelect.value}`
+        : "";
+      const symptom = symptomSelect.value ? ` / ${symptomSelect.value}` : "";
+      detail.textContent = `${makerSelect.value} / ${modelSelect.value}${errorCode}${symptom}`;
+      result.hidden = false;
+    }
+
+    symptomSelect.addEventListener("change", updateEstimate);
+
+    errorCodeSelect.addEventListener("change", () => {
+      updateEstimate();
+    });
+
+    copyButton.addEventListener("click", async () => {
+      const text = `【修理概算見積り】\n${detail.textContent}\n税込 ${price.textContent}`;
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        textarea.remove();
+      }
+      copyButton.textContent = "コピーしました";
+      setTimeout(() => { copyButton.textContent = "見積り内容をコピー"; }, 1500);
+    });
+
+    loadSpreadsheetPrices();
+    setInterval(loadSpreadsheetPrices, 60 * 1000);
+  </script>
+</body>
+</html>
