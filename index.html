@@ -116,36 +116,36 @@
 
   <script src="config.js"></script>
   <script>
-    // 仮の料金表です。実際の加盟店向け料金に合わせて金額を変更してください。
-    function makeDysonSymptoms(temporaryPrice, hasDisplay = false) {
+    // 選択肢の初期一覧です。料金はスプレッドシートから読み込みます。
+    function makeDysonSymptoms(unusedPrice, hasDisplay = false) {
       const symptoms = {
-        "赤ランプ点灯": temporaryPrice,
-        "充電されない": temporaryPrice,
-        "青ランプ点滅しない": temporaryPrice,
-        "充電の減りが早い": temporaryPrice,
-        "フィルター詰まりマークが消えない": temporaryPrice,
-        "ヘッドローラー（ブラシ）が回らない": temporaryPrice,
-        "動作しない（まったく動かない）": temporaryPrice,
-        "動作不良（一瞬動くがすぐ止まる）": temporaryPrice,
-        "吸引力の低下": temporaryPrice,
-        "異臭がする": temporaryPrice
+        "赤ランプ点灯": null,
+        "充電されない": null,
+        "青ランプ点滅しない": null,
+        "充電の減りが早い": null,
+        "フィルター詰まりマークが消えない": null,
+        "ヘッドローラー（ブラシ）が回らない": null,
+        "動作しない（まったく動かない）": null,
+        "動作不良（一瞬動くがすぐ止まる）": null,
+        "吸引力の低下": null,
+        "異臭がする": null
       };
-      if (hasDisplay) symptoms["液晶が表示されない"] = temporaryPrice;
+      if (hasDisplay) symptoms["液晶が表示されない"] = null;
       return symptoms;
     }
 
-    function makeRoombaSymptoms(temporaryPrice) {
+    function makeRoombaSymptoms(unusedPrice) {
       return {
-        "充電が溜まらない": temporaryPrice,
-        "タイヤが回らない": temporaryPrice,
-        "ホームベースに戻らない": temporaryPrice,
-        "真っ直ぐ進まない": temporaryPrice,
-        "段差判定になる": temporaryPrice,
-        "勢いよく壁にぶつかる": temporaryPrice,
-        "起動しない": temporaryPrice,
-        "バンパーを数回たたいてください": temporaryPrice,
-        "アプリに接続できない": temporaryPrice,
-        "エッジブラシが回らない": temporaryPrice
+        "充電が溜まらない": null,
+        "タイヤが回らない": null,
+        "ホームベースに戻らない": null,
+        "真っ直ぐ進まない": null,
+        "段差判定になる": null,
+        "勢いよく壁にぶつかる": null,
+        "起動しない": null,
+        "バンパーを数回たたいてください": null,
+        "アプリに接続できない": null,
+        "エッジブラシが回らない": null
       };
     }
 
@@ -167,11 +167,11 @@
       "充電エラー9"
     ];
 
-    function makeRoombaErrorPrices(temporaryPrice) {
+    function makeRoombaErrorPrices(unusedPrice) {
       return Object.fromEntries(
         ROOMBA_ERROR_CODES
           .filter((errorCode) => errorCode !== "不明・該当なし")
-          .map((errorCode) => [errorCode, temporaryPrice])
+          .map((errorCode) => [errorCode, null])
       );
     }
 
@@ -275,8 +275,9 @@
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const rows = parseCsv(await response.text());
         rows.slice(1).forEach(([maker, model, type, item, rawPrice]) => {
-          const amount = Number(String(rawPrice).replace(/[,円\s]/g, ""));
-          if (!maker || !model || !type || !item || !Number.isFinite(amount)) return;
+          const normalizedPrice = String(rawPrice).replace(/[,円\s]/g, "");
+          const amount = Number(normalizedPrice);
+          if (!maker || !model || !type || !item || !normalizedPrice || !Number.isFinite(amount)) return;
           if (type === "症状" && PRICE_LIST[maker]?.[model]) {
             PRICE_LIST[maker][model][item] = amount;
           }
@@ -328,7 +329,14 @@
         ? ROOMBA_ERROR_PRICE_LIST[modelSelect.value][selectedErrorCode]
         : PRICE_LIST[makerSelect.value][modelSelect.value][symptomSelect.value];
       if (!Number.isFinite(amount)) {
-        result.hidden = true;
+        const errorCode = isRoomba && errorCodeSelect.value
+          ? ` / ${errorCodeSelect.value}`
+          : "";
+        const symptom = symptomSelect.value ? ` / ${symptomSelect.value}` : "";
+        price.textContent = "料金未設定";
+        detail.textContent = `${makerSelect.value} / ${modelSelect.value}${errorCode}${symptom}`;
+        copyButton.hidden = true;
+        result.hidden = false;
         return;
       }
       price.textContent = `${amount.toLocaleString("ja-JP")}円`;
@@ -337,6 +345,7 @@
         : "";
       const symptom = symptomSelect.value ? ` / ${symptomSelect.value}` : "";
       detail.textContent = `${makerSelect.value} / ${modelSelect.value}${errorCode}${symptom}`;
+      copyButton.hidden = false;
       result.hidden = false;
     }
 
