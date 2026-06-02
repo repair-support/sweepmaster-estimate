@@ -35,12 +35,13 @@ window.SWEEPMASTER_DEFAULTS = (() => {
     "動作不良（一瞬動くがすぐ止まる）": ["motor", "モーター修理"],
     "液晶が表示されない": null,
     "吸引力の低下": ["cyclone", "サイクロンクリーニング"],
-    "異臭がする": ["cyclone", "サイクロンクリーニング"]
+    "異臭がする": ["cyclone", "サイクロンクリーニング"],
+    "その他": null
   };
   Object.entries(dysonModels).forEach(([model, menu]) => {
     Object.entries(dysonSymptoms).forEach(([symptom, repair]) => {
       const [repairKey, repairMenu] = repair || [];
-      set("ダイソン", model, "症状", symptom, repairKey && menu[repairKey] ? menu[repairKey] : confirm, repairMenu);
+      set("ダイソン", model, "症状", symptom, symptom === "その他" ? "要相談" : repairKey && menu[repairKey] ? menu[repairKey] : confirm, repairMenu);
     });
   });
 
@@ -65,19 +66,20 @@ window.SWEEPMASTER_DEFAULTS = (() => {
     "起動しない": ["board", "基板交換"],
     "バンパーを数回たたいてください": ["bumper", "バンパー調整"],
     "アプリに接続できない": null,
-    "エッジブラシが回らない": ["edge", "エッジモーター修理"]
+    "エッジブラシが回らない": ["edge", "エッジモーター修理"],
+    "その他": null
   };
   const roombaErrorCodes = [
     "エラー7", "エラー8", "エラー9", "エラー10", "エラー11",
     "エラー12（エラー6）", "エラー13（エラー1、3）", "エラー15", "エラー26",
-    "充電エラー1", "充電エラー3（500～700）", "充電エラー5", "充電エラー8", "充電エラー9"
+    "充電エラー1", "充電エラー3（500～700）", "充電エラー5", "充電エラー8", "充電エラー9", "その他"
   ];
   Object.entries(roombaModels).forEach(([model, menu]) => {
     Object.entries(roombaSymptoms).forEach(([symptom, repair]) => {
       const [repairKey, repairMenu] = repair || [];
-      set("ルンバ", model, "症状", symptom, repairKey && menu[repairKey] ? menu[repairKey] : confirm, repairMenu);
+      set("ルンバ", model, "症状", symptom, symptom === "その他" ? "要相談" : repairKey && menu[repairKey] ? menu[repairKey] : confirm, repairMenu);
     });
-    roombaErrorCodes.forEach((errorCode) => set("ルンバ", model, "エラーコード", errorCode, confirm, "エラーコードに基づき診断"));
+    roombaErrorCodes.forEach((errorCode) => set("ルンバ", model, "エラーコード", errorCode, errorCode === "その他" ? "要相談" : confirm, errorCode === "その他" ? "診断後に確定" : "エラーコードに基づき診断"));
   });
 
   return {

@@ -141,7 +141,8 @@
         "動作しない（まったく動かない）": null,
         "動作不良（一瞬動くがすぐ止まる）": null,
         "吸引力の低下": null,
-        "異臭がする": null
+        "異臭がする": null,
+        "その他": "要相談"
       };
       if (hasDisplay) symptoms["液晶が表示されない"] = null;
       return symptoms;
@@ -158,7 +159,8 @@
         "起動しない": null,
         "バンパーを数回たたいてください": null,
         "アプリに接続できない": null,
-        "エッジブラシが回らない": null
+        "エッジブラシが回らない": null,
+        "その他": "要相談"
       };
     }
 
@@ -177,7 +179,8 @@
       "充電エラー3（500～700）",
       "充電エラー5",
       "充電エラー8",
-      "充電エラー9"
+      "充電エラー9",
+      "その他"
     ];
 
     function makeRoombaErrorPrices(unusedPrice) {
@@ -399,7 +402,7 @@
         : "";
       const symptom = selectedSymptom ? ` / ${selectedSymptom}` : "";
       detail.textContent = `${makerSelect.value} / ${modelSelect.value}${errorCode}${symptom}`;
-      copyButton.hidden = amount === "要確認";
+      copyButton.hidden = amount === "要確認" || amount === "要相談";
       result.hidden = false;
     }
 
