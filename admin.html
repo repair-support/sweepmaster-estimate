@@ -21,7 +21,8 @@
     button, .button { display: inline-block; padding: 10px 15px; border: 0; border-radius: 8px; background: #1d4ed8; color: #fff; cursor: pointer; font-weight: 700; text-decoration: none; }
     .secondary { background: #64748b; }
     .toolbar { display: flex; gap: 8px; align-items: center; margin: 16px 0; }
-    #message { min-height: 24px; color: #166534; font-weight: 700; }
+    #message { min-height: 24px; padding: 10px 12px; border-radius: 8px; background: #eff6ff; color: #1d4ed8; font-weight: 700; }
+    #message.error { background: #fef2f2; color: #b91c1c; }
     .setup { padding: 14px; border: 1px solid #fbbf24; border-radius: 8px; background: #fffbeb; }
     @media (max-width: 720px) {
       body { padding: 10px; }
@@ -34,7 +35,7 @@
 <body>
   <main>
     <h1>料金管理</h1>
-    <p>料金を入力して保存すると、加盟店向け見積り画面へ反映されます。</p>
+    <p>管理パスワードを入力し、一覧の金額を変更してから「変更を保存」を押してください。パスワードを入力しただけでは料金表は変わりません。</p>
     <p class="setup" id="setupMessage" hidden>保存APIが未設定です。<a href="google-apps-script.gs">初回設定用コード</a>をGoogle Apps Scriptへ登録してください。初回設定後は、この画面だけで料金を更新できます。</p>
 
     <label for="password">管理パスワード</label>
@@ -59,7 +60,7 @@
       <button type="button" class="secondary" id="reloadButton">再読み込み</button>
       <a class="button secondary" href="index.html">見積り画面へ戻る</a>
     </div>
-    <p id="message"></p>
+    <p id="message">料金表を読み込んでいます...</p>
 
     <table>
       <thead>
@@ -79,7 +80,13 @@
     const maker = document.querySelector("#maker");
     const type = document.querySelector("#type");
     const setupMessage = document.querySelector("#setupMessage");
+    const saveButton = document.querySelector("#saveButton");
     let rows = [];
+
+    function setMessage(text, isError = false) {
+      message.textContent = text;
+      message.classList.toggle("error", isError);
+    }
 
     function parseCsv(csv) {
       const parsed = [];
@@ -128,7 +135,7 @@
     }
 
     async function loadPrices() {
-      message.textContent = "料金表を読み込んでいます...";
+      setMessage("料金表を読み込んでいます...");
       const separator = config.sheetCsvUrl.includes("?") ? "&" : "?";
       const response = await fetch(`${config.sheetCsvUrl}${separator}_=${Date.now()}`, { cache: "no-store" });
       const parsed = parseCsv(await response.text());
@@ -136,7 +143,7 @@
         index: index + 2, maker: makerName, model, type: itemType, item, price
       }));
       render();
-      message.textContent = `${rows.length}件を読み込みました。`;
+      setMessage(`${rows.length}件を読み込みました。金額を変更すると保存できます。`);
     }
 
     function callApi(params) {
@@ -157,29 +164,32 @@
       });
     }
 
-    document.querySelector("#saveButton").addEventListener("click", async () => {
+    saveButton.addEventListener("click", async () => {
       if (!config.adminApiUrl) { setupMessage.hidden = false; return; }
-      if (!password.value) { message.textContent = "管理パスワードを入力してください。"; return; }
+      if (!password.value) { setMessage("管理パスワードを入力してください。", true); return; }
       const inputs = [...tbody.querySelectorAll("input[data-index]")];
       const changed = inputs.filter((input) => rows.find((row) => row.index === Number(input.dataset.index)).price !== input.value.trim());
-      if (!changed.length) { message.textContent = "変更はありません。"; return; }
-      message.textContent = `${changed.length}件を保存しています...`;
+      if (!changed.length) { setMessage("金額が変更されていません。先に一覧の金額を編集してください。", true); return; }
+      setMessage(`${changed.length}件を保存しています...`);
+      saveButton.disabled = true;
       try {
         for (const input of changed) {
           const row = rows.find((item) => item.index === Number(input.dataset.index));
           await callApi({ action: "update", password: password.value, row: row.index, maker: row.maker, model: row.model, type: row.type, item: row.item, price: input.value.trim() });
         }
         await loadPrices();
-        message.textContent = "保存しました。見積り画面へ順次反映されます。";
+        setMessage("保存しました。見積り画面へ順次反映されます。");
       } catch (error) {
-        message.textContent = error.message;
+        setMessage(error.message, true);
+      } finally {
+        saveButton.disabled = false;
       }
     });
 
     document.querySelector("#reloadButton").addEventListener("click", loadPrices);
     [search, maker, type].forEach((element) => element.addEventListener("input", render));
     setupMessage.hidden = Boolean(config.adminApiUrl);
-    loadPrices().catch(() => { message.textContent = "料金表を読み込めませんでした。"; });
+    loadPrices().catch(() => { setMessage("料金表を読み込めませんでした。", true); });
   </script>
 </body>
 </html>
