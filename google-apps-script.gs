@@ -20,6 +20,8 @@ function doGet(e) {
     const price = String(e.parameter.price || "").replace(/[,円\s]/g, "");
     if (price && (!/^\d+$/.test(price) || Number(price) < 0)) throw new Error("金額は0以上の半角数字で入力してください。");
     sheet.getRange(row, 5).setValue(price ? Number(price) : "");
+    if (!sheet.getRange(1, 6).getValue()) sheet.getRange(1, 6).setValue("想定修理メニュー");
+    sheet.getRange(row, 6).setValue(String(e.parameter.repairMenu || ""));
     return jsonp(callback, { ok: true });
   } catch (error) {
     return jsonp(callback, { ok: false, message: error.message });

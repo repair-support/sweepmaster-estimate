@@ -86,6 +86,9 @@ window.SWEEPMASTER_DEFAULTS = (() => {
     },
     getRepairMenu(maker, model, type, item) {
       return repairMenus[[maker, model, type, item].join("\t")] || "診断後に確定";
+    },
+    setRepairMenu(maker, model, type, item, repairMenu) {
+      repairMenus[[maker, model, type, item].join("\t")] = repairMenu;
     }
   };
 })();

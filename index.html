@@ -307,7 +307,7 @@
         const response = await fetch(`${csvUrl}${separator}_=${Date.now()}`, { cache: "no-store" });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const rows = parseCsv(await response.text());
-        rows.slice(1).forEach(([maker, model, type, item, rawPrice]) => {
+        rows.slice(1).forEach(([maker, model, type, item, rawPrice, repairMenu]) => {
           const normalizedPrice = String(rawPrice).replace(/[,円\s]/g, "");
           const amount = Number(normalizedPrice);
           if (!maker || !model || !type || !item || !normalizedPrice || !Number.isFinite(amount)) return;
@@ -318,6 +318,7 @@
             ROOMBA_ERROR_PRICE_LIST[model][item] = amount;
             if (!ROOMBA_ERROR_CODES.includes(item)) ROOMBA_ERROR_CODES.push(item);
           }
+          if (repairMenu) window.SWEEPMASTER_DEFAULTS.setRepairMenu(maker, model, type, item, repairMenu);
         });
         if (makerSelect.value === "ルンバ") {
           const selectedErrorCode = errorCodeSelect.value;

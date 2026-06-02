@@ -103,7 +103,7 @@
       "充電エラー9"
     ];
 
-    const rows = [["メーカー", "機種", "種別", "項目", "金額"]];
+    const rows = [["メーカー", "機種", "種別", "項目", "金額", "想定修理メニュー"]];
     dysonModels.forEach((model) => {
       const symptoms = dysonDisplayModels.has(model)
         ? [...dysonSymptoms, "液晶が表示されない"]

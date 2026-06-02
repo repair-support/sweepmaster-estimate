@@ -17,6 +17,7 @@
     th, td { padding: 9px 8px; border-bottom: 1px solid #e2e8f0; text-align: left; }
     th { position: sticky; top: 0; background: #f8fafc; }
     td.price { width: 150px; }
+    td.repair-menu { width: 220px; }
     td.price input { text-align: right; }
     button, .button { display: inline-block; padding: 10px 15px; border: 0; border-radius: 8px; background: #1d4ed8; color: #fff; cursor: pointer; font-weight: 700; text-decoration: none; }
     .secondary { background: #64748b; }
@@ -70,7 +71,7 @@
 
     <table>
       <thead>
-        <tr><th>メーカー</th><th>機種</th><th>種別</th><th>項目</th><th>金額</th></tr>
+        <tr><th>メーカー</th><th>機種</th><th>種別</th><th>項目</th><th>想定修理メニュー</th><th>金額</th></tr>
       </thead>
       <tbody id="priceRows"></tbody>
     </table>
@@ -145,12 +146,21 @@
           td.textContent = text;
           tr.appendChild(td);
         });
+        const repairMenuCell = document.createElement("td");
+        repairMenuCell.className = "repair-menu";
+        const repairMenuInput = document.createElement("input");
+        repairMenuInput.value = row.repairMenu;
+        repairMenuInput.dataset.index = row.index;
+        repairMenuInput.dataset.field = "repairMenu";
+        repairMenuCell.appendChild(repairMenuInput);
+        tr.appendChild(repairMenuCell);
         const priceCell = document.createElement("td");
         priceCell.className = "price";
         const input = document.createElement("input");
         input.inputMode = "numeric";
         input.value = row.price;
         input.dataset.index = row.index;
+        input.dataset.field = "price";
         priceCell.appendChild(input);
         tr.appendChild(priceCell);
         tbody.appendChild(tr);
@@ -185,13 +195,14 @@
       const separator = config.sheetCsvUrl.includes("?") ? "&" : "?";
       const response = await fetch(`${config.sheetCsvUrl}${separator}_=${Date.now()}`, { cache: "no-store" });
       const parsed = parseCsv(await response.text());
-      rows = parsed.slice(1).map(([makerName, model, itemType, item, price], index) => ({
+      rows = parsed.slice(1).map(([makerName, model, itemType, item, price, repairMenu], index) => ({
         index: index + 2,
         maker: makerName,
         model,
         type: itemType,
         item,
-        price: price || window.SWEEPMASTER_DEFAULTS.get(makerName, model, itemType, item) || ""
+        price: price || window.SWEEPMASTER_DEFAULTS.get(makerName, model, itemType, item) || "",
+        repairMenu: repairMenu || window.SWEEPMASTER_DEFAULTS.getRepairMenu(makerName, model, itemType, item)
       }));
       updateFilterOptions();
       setMessage(`${rows.length}件を読み込みました。金額を変更すると保存できます。`);
@@ -218,15 +229,18 @@
     saveButton.addEventListener("click", async () => {
       if (!config.adminApiUrl) { setupMessage.hidden = false; return; }
       if (!password.value) { setMessage("管理パスワードを入力してください。", true); return; }
-      const inputs = [...tbody.querySelectorAll("input[data-index]")];
-      const changed = inputs.filter((input) => rows.find((row) => row.index === Number(input.dataset.index)).price !== input.value.trim());
+      const inputs = [...tbody.querySelectorAll("input[data-index][data-field]")];
+      const changed = inputs.filter((input) => rows.find((row) => row.index === Number(input.dataset.index))[input.dataset.field] !== input.value.trim());
       if (!changed.length) { setMessage("金額が変更されていません。先に一覧の金額を編集してください。", true); return; }
       setMessage(`${changed.length}件を保存しています...`);
       saveButton.disabled = true;
       try {
-        for (const input of changed) {
-          const row = rows.find((item) => item.index === Number(input.dataset.index));
-          await callApi({ action: "update", password: password.value, row: row.index, maker: row.maker, model: row.model, type: row.type, item: row.item, price: input.value.trim() });
+        const changedRows = [...new Set(changed.map((input) => Number(input.dataset.index)))];
+        for (const rowIndex of changedRows) {
+          const row = rows.find((item) => item.index === rowIndex);
+          const priceInput = tbody.querySelector(`input[data-index="${row.index}"][data-field="price"]`);
+          const repairMenuInput = tbody.querySelector(`input[data-index="${row.index}"][data-field="repairMenu"]`);
+          await callApi({ action: "update", password: password.value, row: row.index, maker: row.maker, model: row.model, type: row.type, item: row.item, price: priceInput.value.trim(), repairMenu: repairMenuInput.value.trim() });
         }
         await loadPrices();
         setMessage("保存しました。見積り画面へ順次反映されます。");
