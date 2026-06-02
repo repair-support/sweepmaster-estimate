@@ -3,8 +3,9 @@ const ADMIN_PASSWORD = "ここを管理用パスワードに変更";
 function doGet(e) {
   const callback = String(e.parameter.callback || "callback").replace(/[^\w$.]/g, "");
   try {
-    if (e.parameter.action !== "update") throw new Error("未対応の操作です。");
     if (e.parameter.password !== ADMIN_PASSWORD) throw new Error("管理パスワードが違います。");
+    if (e.parameter.action === "auth") return jsonp(callback, { ok: true });
+    if (e.parameter.action !== "update") throw new Error("未対応の操作です。");
 
     const row = Number(e.parameter.row);
     if (!Number.isInteger(row) || row < 2) throw new Error("行番号が不正です。");

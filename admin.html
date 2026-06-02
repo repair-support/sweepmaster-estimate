@@ -24,6 +24,12 @@
     #message { min-height: 24px; padding: 10px 12px; border-radius: 8px; background: #eff6ff; color: #1d4ed8; font-weight: 700; }
     #message.error { background: #fef2f2; color: #b91c1c; }
     .setup { padding: 14px; border: 1px solid #fbbf24; border-radius: 8px; background: #fffbeb; }
+    .auth-overlay { position: fixed; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(15, 23, 42, .55); z-index: 10; }
+    .auth-overlay[hidden] { display: none; }
+    .auth-card { width: min(100%, 420px); padding: 24px; border-radius: 14px; background: #fff; box-shadow: 0 18px 50px rgba(15, 23, 42, .24); }
+    .auth-card h2 { margin: 0 0 8px; font-size: 20px; }
+    .auth-card button { width: 100%; margin-top: 12px; }
+    #authMessage { min-height: 22px; color: #b91c1c; font-weight: 700; }
     @media (max-width: 720px) {
       body { padding: 10px; }
       main { padding: 16px; }
@@ -37,9 +43,6 @@
     <h1>料金管理</h1>
     <p>管理パスワードを入力し、一覧の金額を変更してから「変更を保存」を押してください。パスワードを入力しただけでは料金表は変わりません。</p>
     <p class="setup" id="setupMessage" hidden>保存APIが未設定です。<a href="google-apps-script.gs">初回設定用コード</a>をGoogle Apps Scriptへ登録してください。初回設定後は、この画面だけで料金を更新できます。</p>
-
-    <label for="password">管理パスワード</label>
-    <input id="password" type="password" autocomplete="current-password">
 
     <div class="controls">
       <input id="search" type="search" placeholder="機種・症状・エラーコードで検索">
@@ -73,6 +76,17 @@
     </table>
   </main>
 
+  <div class="auth-overlay" id="authOverlay">
+    <section class="auth-card">
+      <h2>管理者ログイン</h2>
+      <p>料金管理画面を開くには、管理パスワードを入力してください。</p>
+      <input id="password" type="password" autocomplete="current-password" placeholder="管理パスワード">
+      <button type="button" id="loginButton">ログイン</button>
+      <p id="authMessage"></p>
+      <a class="button secondary" href="index.html">見積り画面へ戻る</a>
+    </section>
+  </div>
+
   <script src="config.js"></script>
   <script src="default-prices.js"></script>
   <script>
@@ -86,6 +100,9 @@
     const item = document.querySelector("#item");
     const setupMessage = document.querySelector("#setupMessage");
     const saveButton = document.querySelector("#saveButton");
+    const authOverlay = document.querySelector("#authOverlay");
+    const authMessage = document.querySelector("#authMessage");
+    const loginButton = document.querySelector("#loginButton");
     let rows = [];
 
     function setMessage(text, isError = false) {
@@ -220,13 +237,37 @@
       }
     });
 
+    loginButton.addEventListener("click", async () => {
+      if (!config.adminApiUrl) {
+        authMessage.textContent = "保存APIが未設定です。";
+        return;
+      }
+      if (!password.value) {
+        authMessage.textContent = "管理パスワードを入力してください。";
+        return;
+      }
+      loginButton.disabled = true;
+      authMessage.textContent = "確認しています...";
+      try {
+        await callApi({ action: "auth", password: password.value });
+        authOverlay.hidden = true;
+        await loadPrices();
+      } catch (error) {
+        authMessage.textContent = error.message;
+      } finally {
+        loginButton.disabled = false;
+      }
+    });
+    password.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") loginButton.click();
+    });
+
     document.querySelector("#reloadButton").addEventListener("click", loadPrices);
     search.addEventListener("input", render);
     maker.addEventListener("change", updateFilterOptions);
     type.addEventListener("change", updateFilterOptions);
     item.addEventListener("change", render);
     setupMessage.hidden = Boolean(config.adminApiUrl);
-    loadPrices().catch(() => { setMessage("料金表を読み込めませんでした。", true); });
   </script>
 </body>
 </html>
