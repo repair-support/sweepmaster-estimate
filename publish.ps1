@@ -7,6 +7,7 @@ $files = @(
   "settings.html",
   "admin.html",
   "template.html",
+  "google-apps-script.gs",
   "config.js",
   "price-template.csv",
   "publish.ps1",
