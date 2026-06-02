@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>スイープマスター 料金表テンプレート</title>
+  <style>
+    :root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f4f6f8; color: #1f2937; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px; }
+    main { width: min(100%, 960px); margin: 0 auto; padding: 28px; border-radius: 18px; background: #fff; box-shadow: 0 10px 30px rgba(15, 23, 42, .08); }
+    h1 { margin: 0 0 8px; font-size: 24px; }
+    p { color: #475569; font-size: 14px; line-height: 1.8; }
+    textarea { width: 100%; height: 420px; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-family: Consolas, monospace; font-size: 13px; white-space: pre; }
+    button, .button { display: inline-block; margin: 14px 8px 0 0; padding: 11px 16px; border: 0; border-radius: 9px; background: #1d4ed8; color: #fff; cursor: pointer; font-size: 14px; font-weight: 700; text-decoration: none; }
+    .secondary { background: #64748b; }
+    #message { min-height: 24px; color: #166534; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>料金表テンプレート</h1>
+    <p>下の内容をコピーし、GoogleスプレッドシートのA1セルへ貼り付けてください。金額列へ加盟店向け料金を入力します。</p>
+    <textarea id="template" readonly></textarea>
+    <div>
+      <button type="button" id="copyButton">貼り付け用データをコピー</button>
+      <button type="button" class="secondary" id="downloadButton">TSVファイルをダウンロード</button>
+      <a class="button secondary" href="settings.html">設定画面へ戻る</a>
+    </div>
+    <p id="message"></p>
+  </main>
+
+  <script>
+    const dysonModels = [
+      "DC34/35",
+      "SV07（Dyson V6 Motorhead / Fluffy+）",
+      "SV09（Dyson V6 Absolute）",
+      "SV10（Dyson V8）",
+      "SV11（Dyson V7）",
+      "SV12（Dyson V10）",
+      "SV14（Dyson V11）",
+      "SV15（Dyson V11 Outsize）",
+      "SV18（Dyson Digital Slim）",
+      "SV20（Dyson V12 Detect Slim）",
+      "SV22（Dyson V15 Detect）"
+    ];
+    const dysonSymptoms = [
+      "赤ランプ点灯",
+      "充電されない",
+      "青ランプ点滅しない",
+      "充電の減りが早い",
+      "フィルター詰まりマークが消えない",
+      "ヘッドローラー（ブラシ）が回らない",
+      "動作しない（まったく動かない）",
+      "動作不良（一瞬動くがすぐ止まる）",
+      "吸引力の低下",
+      "異臭がする"
+    ];
+    const dysonDisplayModels = new Set([
+      "SV14（Dyson V11）",
+      "SV15（Dyson V11 Outsize）",
+      "SV18（Dyson Digital Slim）",
+      "SV20（Dyson V12 Detect Slim）",
+      "SV22（Dyson V15 Detect）"
+    ]);
+    const roombaModels = [
+      "600・700シリーズ",
+      "800シリーズ",
+      "900シリーズ",
+      "i7・i7+",
+      "i2・i3・e5",
+      "j7・j7+",
+      "s9・s9+",
+      "ルンバコンボ j7+",
+      "ルンバコンボ j9+"
+    ];
+    const roombaSymptoms = [
+      "充電が溜まらない",
+      "タイヤが回らない",
+      "ホームベースに戻らない",
+      "真っ直ぐ進まない",
+      "段差判定になる",
+      "勢いよく壁にぶつかる",
+      "起動しない",
+      "バンパーを数回たたいてください",
+      "アプリに接続できない",
+      "エッジブラシが回らない"
+    ];
+    const roombaErrorCodes = [
+      "エラー7",
+      "エラー8",
+      "エラー9",
+      "エラー10",
+      "エラー11",
+      "エラー12（エラー6）",
+      "エラー13（エラー1、3）",
+      "エラー15",
+      "エラー26",
+      "充電エラー1",
+      "充電エラー3（500～700）",
+      "充電エラー5",
+      "充電エラー8",
+      "充電エラー9"
+    ];
+
+    const rows = [["メーカー", "機種", "種別", "項目", "金額"]];
+    dysonModels.forEach((model) => {
+      const symptoms = dysonDisplayModels.has(model)
+        ? [...dysonSymptoms, "液晶が表示されない"]
+        : dysonSymptoms;
+      symptoms.forEach((symptom) => rows.push(["ダイソン", model, "症状", symptom, ""]));
+    });
+    roombaModels.forEach((model) => {
+      roombaSymptoms.forEach((symptom) => rows.push(["ルンバ", model, "症状", symptom, ""]));
+      roombaErrorCodes.forEach((errorCode) => rows.push(["ルンバ", model, "エラーコード", errorCode, ""]));
+    });
+
+    const tsv = rows.map((row) => row.join("\t")).join("\n");
+    const textarea = document.querySelector("#template");
+    const message = document.querySelector("#message");
+    textarea.value = tsv;
+
+    document.querySelector("#copyButton").addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(tsv);
+      } catch {
+        textarea.select();
+        document.execCommand("copy");
+      }
+      message.textContent = `${rows.length - 1}件の料金設定行をコピーしました。`;
+    });
+
+    document.querySelector("#downloadButton").addEventListener("click", () => {
+      const blob = new Blob([`\uFEFF${tsv}`], { type: "text/tab-separated-values;charset=utf-8" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "sweepmaster-price-template.tsv";
+      link.click();
+      URL.revokeObjectURL(link.href);
+    });
+  </script>
+</body>
+</html>
