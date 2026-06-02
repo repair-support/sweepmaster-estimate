@@ -71,6 +71,7 @@
   </main>
 
   <script src="config.js"></script>
+  <script src="default-prices.js"></script>
   <script>
     const config = window.SWEEPMASTER_CONFIG || {};
     const tbody = document.querySelector("#priceRows");
@@ -140,7 +141,12 @@
       const response = await fetch(`${config.sheetCsvUrl}${separator}_=${Date.now()}`, { cache: "no-store" });
       const parsed = parseCsv(await response.text());
       rows = parsed.slice(1).map(([makerName, model, itemType, item, price], index) => ({
-        index: index + 2, maker: makerName, model, type: itemType, item, price
+        index: index + 2,
+        maker: makerName,
+        model,
+        type: itemType,
+        item,
+        price: price || window.SWEEPMASTER_DEFAULTS.get(makerName, model, itemType, item) || ""
       }));
       render();
       setMessage(`${rows.length}件を読み込みました。金額を変更すると保存できます。`);

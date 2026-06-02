@@ -9,6 +9,7 @@ $files = @(
   "template.html",
   "google-apps-script.gs",
   "config.js",
+  "default-prices.js",
   "price-template.csv",
   "publish.ps1",
   "publish.cmd"

@@ -115,6 +115,7 @@
   </main>
 
   <script src="config.js"></script>
+  <script src="default-prices.js"></script>
   <script>
     // 選択肢の初期一覧です。料金はスプレッドシートから読み込みます。
     function makeDysonSymptoms(unusedPrice, hasDisplay = false) {
@@ -214,6 +215,21 @@
       "ルンバコンボ j9+": makeRoombaErrorPrices(12100)
     };
 
+    function applyDefaultPrices() {
+      Object.entries(PRICE_LIST).forEach(([maker, models]) => {
+        Object.entries(models).forEach(([model, symptoms]) => {
+          Object.keys(symptoms).forEach((symptom) => {
+            symptoms[symptom] = window.SWEEPMASTER_DEFAULTS.get(maker, model, "症状", symptom);
+          });
+        });
+      });
+      Object.entries(ROOMBA_ERROR_PRICE_LIST).forEach(([model, errorCodes]) => {
+        Object.keys(errorCodes).forEach((errorCode) => {
+          errorCodes[errorCode] = window.SWEEPMASTER_DEFAULTS.get("ルンバ", model, "エラーコード", errorCode);
+        });
+      });
+    }
+
     const makerSelect = document.querySelector("#maker");
     const modelSelect = document.querySelector("#model");
     const errorCodeField = document.querySelector("#errorCodeField");
@@ -223,6 +239,7 @@
     const price = document.querySelector("#price");
     const detail = document.querySelector("#detail");
     const copyButton = document.querySelector("#copyButton");
+    applyDefaultPrices();
     function setOptions(select, options, placeholder) {
       select.innerHTML = `<option value="">${placeholder}</option>`;
       options.forEach((option) => {
@@ -328,7 +345,7 @@
       const amount = selectedErrorCode
         ? ROOMBA_ERROR_PRICE_LIST[modelSelect.value][selectedErrorCode]
         : PRICE_LIST[makerSelect.value][modelSelect.value][symptomSelect.value];
-      if (!Number.isFinite(amount)) {
+      if (amount === null || amount === undefined || amount === "") {
         const errorCode = isRoomba && errorCodeSelect.value
           ? ` / ${errorCodeSelect.value}`
           : "";
@@ -339,13 +356,13 @@
         result.hidden = false;
         return;
       }
-      price.textContent = `${amount.toLocaleString("ja-JP")}円`;
+      price.textContent = typeof amount === "number" ? `${amount.toLocaleString("ja-JP")}円` : amount;
       const errorCode = isRoomba && errorCodeSelect.value
         ? ` / ${errorCodeSelect.value}`
         : "";
       const symptom = symptomSelect.value ? ` / ${symptomSelect.value}` : "";
       detail.textContent = `${makerSelect.value} / ${modelSelect.value}${errorCode}${symptom}`;
-      copyButton.hidden = false;
+      copyButton.hidden = amount === "要確認";
       result.hidden = false;
     }
 
