@@ -5,6 +5,7 @@ $publishDir = Join-Path $env:USERPROFILE ".sweepmaster-publish"
 $files = @(
   "index.html",
   "settings.html",
+  "admin.html",
   "template.html",
   "config.js",
   "price-template.csv",

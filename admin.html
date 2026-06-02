@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>スイープマスター 料金管理</title>
+  <style>
+    :root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f4f6f8; color: #1f2937; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 20px; }
+    main { width: min(100%, 1100px); margin: 0 auto; padding: 24px; border-radius: 18px; background: #fff; box-shadow: 0 10px 30px rgba(15, 23, 42, .08); }
+    h1 { margin: 0 0 8px; font-size: 24px; }
+    p { color: #475569; font-size: 14px; line-height: 1.7; }
+    .controls { display: grid; grid-template-columns: 1fr 180px 180px; gap: 10px; margin: 20px 0; }
+    input, select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 9px 8px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+    th { position: sticky; top: 0; background: #f8fafc; }
+    td.price { width: 150px; }
+    td.price input { text-align: right; }
+    button, .button { display: inline-block; padding: 10px 15px; border: 0; border-radius: 8px; background: #1d4ed8; color: #fff; cursor: pointer; font-weight: 700; text-decoration: none; }
+    .secondary { background: #64748b; }
+    .toolbar { display: flex; gap: 8px; align-items: center; margin: 16px 0; }
+    #message { min-height: 24px; color: #166534; font-weight: 700; }
+    .setup { padding: 14px; border: 1px solid #fbbf24; border-radius: 8px; background: #fffbeb; }
+    @media (max-width: 720px) {
+      body { padding: 10px; }
+      main { padding: 16px; }
+      .controls { grid-template-columns: 1fr; }
+      th:nth-child(2), td:nth-child(2) { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>料金管理</h1>
+    <p>料金を入力して保存すると、加盟店向け見積り画面へ反映されます。</p>
+    <p class="setup" id="setupMessage" hidden>保存APIが未設定です。初回設定後に、この画面だけで料金を更新できます。</p>
+
+    <label for="password">管理パスワード</label>
+    <input id="password" type="password" autocomplete="current-password">
+
+    <div class="controls">
+      <input id="search" type="search" placeholder="機種・症状・エラーコードで検索">
+      <select id="maker">
+        <option value="">全メーカー</option>
+        <option value="ダイソン">ダイソン</option>
+        <option value="ルンバ">ルンバ</option>
+      </select>
+      <select id="type">
+        <option value="">全種別</option>
+        <option value="症状">症状</option>
+        <option value="エラーコード">エラーコード</option>
+      </select>
+    </div>
+
+    <div class="toolbar">
+      <button type="button" id="saveButton">変更を保存</button>
+      <button type="button" class="secondary" id="reloadButton">再読み込み</button>
+      <a class="button secondary" href="index.html">見積り画面へ戻る</a>
+    </div>
+    <p id="message"></p>
+
+    <table>
+      <thead>
+        <tr><th>メーカー</th><th>機種</th><th>種別</th><th>項目</th><th>金額</th></tr>
+      </thead>
+      <tbody id="priceRows"></tbody>
+    </table>
+  </main>
+
+  <script src="config.js"></script>
+  <script>
+    const config = window.SWEEPMASTER_CONFIG || {};
+    const tbody = document.querySelector("#priceRows");
+    const message = document.querySelector("#message");
+    const password = document.querySelector("#password");
+    const search = document.querySelector("#search");
+    const maker = document.querySelector("#maker");
+    const type = document.querySelector("#type");
+    const setupMessage = document.querySelector("#setupMessage");
+    let rows = [];
+
+    function parseCsv(csv) {
+      const parsed = [];
+      let row = [], value = "", quoted = false;
+      for (let index = 0; index < csv.length; index += 1) {
+        const character = csv[index], next = csv[index + 1];
+        if (character === '"' && quoted && next === '"') { value += '"'; index += 1; }
+        else if (character === '"') quoted = !quoted;
+        else if (character === "," && !quoted) { row.push(value.trim()); value = ""; }
+        else if ((character === "\n" || character === "\r") && !quoted) {
+          if (character === "\r" && next === "\n") index += 1;
+          row.push(value.trim());
+          if (row.some(Boolean)) parsed.push(row);
+          row = []; value = "";
+        } else value += character;
+      }
+      row.push(value.trim());
+      if (row.some(Boolean)) parsed.push(row);
+      return parsed;
+    }
+
+    function render() {
+      const keyword = search.value.trim().toLowerCase();
+      tbody.innerHTML = "";
+      rows.filter((row) => {
+        return (!maker.value || row.maker === maker.value)
+          && (!type.value || row.type === type.value)
+          && (!keyword || `${row.model} ${row.item}`.toLowerCase().includes(keyword));
+      }).forEach((row) => {
+        const tr = document.createElement("tr");
+        [row.maker, row.model, row.type, row.item].forEach((text) => {
+          const td = document.createElement("td");
+          td.textContent = text;
+          tr.appendChild(td);
+        });
+        const priceCell = document.createElement("td");
+        priceCell.className = "price";
+        const input = document.createElement("input");
+        input.inputMode = "numeric";
+        input.value = row.price;
+        input.dataset.index = row.index;
+        priceCell.appendChild(input);
+        tr.appendChild(priceCell);
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function loadPrices() {
+      message.textContent = "料金表を読み込んでいます...";
+      const separator = config.sheetCsvUrl.includes("?") ? "&" : "?";
+      const response = await fetch(`${config.sheetCsvUrl}${separator}_=${Date.now()}`, { cache: "no-store" });
+      const parsed = parseCsv(await response.text());
+      rows = parsed.slice(1).map(([makerName, model, itemType, item, price], index) => ({
+        index: index + 2, maker: makerName, model, type: itemType, item, price
+      }));
+      render();
+      message.textContent = `${rows.length}件を読み込みました。`;
+    }
+
+    function callApi(params) {
+      return new Promise((resolve, reject) => {
+        const callback = `sweepmaster_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        const script = document.createElement("script");
+        const timer = setTimeout(() => finish(new Error("保存処理がタイムアウトしました。")), 15000);
+        function finish(error, result) {
+          clearTimeout(timer);
+          delete window[callback];
+          script.remove();
+          error ? reject(error) : resolve(result);
+        }
+        window[callback] = (result) => result.ok ? finish(null, result) : finish(new Error(result.message));
+        script.onerror = () => finish(new Error("保存APIへ接続できません。"));
+        script.src = `${config.adminApiUrl}?${new URLSearchParams({ ...params, callback })}`;
+        document.body.appendChild(script);
+      });
+    }
+
+    document.querySelector("#saveButton").addEventListener("click", async () => {
+      if (!config.adminApiUrl) { setupMessage.hidden = false; return; }
+      if (!password.value) { message.textContent = "管理パスワードを入力してください。"; return; }
+      const inputs = [...tbody.querySelectorAll("input[data-index]")];
+      const changed = inputs.filter((input) => rows.find((row) => row.index === Number(input.dataset.index)).price !== input.value.trim());
+      if (!changed.length) { message.textContent = "変更はありません。"; return; }
+      message.textContent = `${changed.length}件を保存しています...`;
+      try {
+        for (const input of changed) {
+          const row = rows.find((item) => item.index === Number(input.dataset.index));
+          await callApi({ action: "update", password: password.value, row: row.index, maker: row.maker, model: row.model, type: row.type, item: row.item, price: input.value.trim() });
+        }
+        await loadPrices();
+        message.textContent = "保存しました。見積り画面へ順次反映されます。";
+      } catch (error) {
+        message.textContent = error.message;
+      }
+    });
+
+    document.querySelector("#reloadButton").addEventListener("click", loadPrices);
+    [search, maker, type].forEach((element) => element.addEventListener("input", render));
+    setupMessage.hidden = Boolean(config.adminApiUrl);
+    loadPrices().catch(() => { message.textContent = "料金表を読み込めませんでした。"; });
+  </script>
+</body>
+</html>
