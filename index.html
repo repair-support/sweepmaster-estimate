@@ -91,6 +91,15 @@
       <option value="">メーカーを選択してください</option>
     </select>
 
+    <div id="roombaTypeField" hidden>
+      <label for="roombaType">確認方法</label>
+      <select id="roombaType">
+        <option value="">選択してください</option>
+        <option value="エラーコード">エラーコード</option>
+        <option value="症状">症状</option>
+      </select>
+    </div>
+
     <div id="errorCodeField" hidden>
       <label for="errorCode">エラーコード</label>
       <select id="errorCode">
@@ -98,10 +107,12 @@
       </select>
     </div>
 
-    <label for="symptom">症状</label>
-    <select id="symptom" disabled>
-      <option value="">機種を選択してください</option>
-    </select>
+    <div id="symptomField">
+      <label for="symptom">症状</label>
+      <select id="symptom" disabled>
+        <option value="">機種を選択してください</option>
+      </select>
+    </div>
 
     <section class="result" id="result" hidden>
       <p class="result-label">概算見積り（税込）</p>
@@ -232,8 +243,11 @@
 
     const makerSelect = document.querySelector("#maker");
     const modelSelect = document.querySelector("#model");
+    const roombaTypeField = document.querySelector("#roombaTypeField");
+    const roombaTypeSelect = document.querySelector("#roombaType");
     const errorCodeField = document.querySelector("#errorCodeField");
     const errorCodeSelect = document.querySelector("#errorCode");
+    const symptomField = document.querySelector("#symptomField");
     const symptomSelect = document.querySelector("#symptom");
     const result = document.querySelector("#result");
     const price = document.querySelector("#price");
@@ -320,7 +334,11 @@
       const models = makerSelect.value ? Object.keys(PRICE_LIST[makerSelect.value]) : [];
       setOptions(modelSelect, models, "選択してください");
       setOptions(symptomSelect, [], "機種を選択してください");
-      errorCodeField.hidden = makerSelect.value !== "ルンバ";
+      const isRoomba = makerSelect.value === "ルンバ";
+      roombaTypeField.hidden = !isRoomba;
+      roombaTypeSelect.value = "";
+      errorCodeField.hidden = true;
+      symptomField.hidden = isRoomba;
       setOptions(errorCodeSelect, makerSelect.value === "ルンバ" ? ROOMBA_ERROR_CODES : [], "選択してください");
       result.hidden = true;
     });
@@ -333,23 +351,36 @@
       result.hidden = true;
     });
 
+    roombaTypeSelect.addEventListener("change", () => {
+      errorCodeField.hidden = roombaTypeSelect.value !== "エラーコード";
+      symptomField.hidden = roombaTypeSelect.value !== "症状";
+      errorCodeSelect.value = "";
+      symptomSelect.value = "";
+      result.hidden = true;
+    });
+
     function updateEstimate() {
       const isRoomba = makerSelect.value === "ルンバ";
-      const selectedErrorCode = isRoomba && errorCodeSelect.value !== "不明・該当なし"
+      const selectedErrorCode = isRoomba
+        && roombaTypeSelect.value === "エラーコード"
+        && errorCodeSelect.value !== "不明・該当なし"
         ? errorCodeSelect.value
         : "";
-      if (!modelSelect.value || (!symptomSelect.value && !selectedErrorCode)) {
+      const selectedSymptom = !isRoomba || roombaTypeSelect.value === "症状"
+        ? symptomSelect.value
+        : "";
+      if (!modelSelect.value || (!selectedSymptom && !selectedErrorCode)) {
         result.hidden = true;
         return;
       }
       const amount = selectedErrorCode
         ? ROOMBA_ERROR_PRICE_LIST[modelSelect.value][selectedErrorCode]
-        : PRICE_LIST[makerSelect.value][modelSelect.value][symptomSelect.value];
+        : PRICE_LIST[makerSelect.value][modelSelect.value][selectedSymptom];
       if (amount === null || amount === undefined || amount === "") {
         const errorCode = isRoomba && errorCodeSelect.value
           ? ` / ${errorCodeSelect.value}`
           : "";
-        const symptom = symptomSelect.value ? ` / ${symptomSelect.value}` : "";
+        const symptom = selectedSymptom ? ` / ${selectedSymptom}` : "";
         price.textContent = "料金未設定";
         detail.textContent = `${makerSelect.value} / ${modelSelect.value}${errorCode}${symptom}`;
         copyButton.hidden = true;
@@ -360,7 +391,7 @@
       const errorCode = isRoomba && errorCodeSelect.value
         ? ` / ${errorCodeSelect.value}`
         : "";
-      const symptom = symptomSelect.value ? ` / ${symptomSelect.value}` : "";
+      const symptom = selectedSymptom ? ` / ${selectedSymptom}` : "";
       detail.textContent = `${makerSelect.value} / ${modelSelect.value}${errorCode}${symptom}`;
       copyButton.hidden = amount === "要確認";
       result.hidden = false;
