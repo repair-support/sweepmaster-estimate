@@ -1,7 +1,10 @@
 window.SWEEPMASTER_DEFAULTS = (() => {
   const prices = {};
-  const set = (maker, model, type, item, price) => {
-    prices[[maker, model, type, item].join("\t")] = price;
+  const repairMenus = {};
+  const set = (maker, model, type, item, price, repairMenu = "診断後に確定") => {
+    const key = [maker, model, type, item].join("\t");
+    prices[key] = price;
+    repairMenus[key] = repairMenu;
   };
   const confirm = "要確認";
 
@@ -22,21 +25,22 @@ window.SWEEPMASTER_DEFAULTS = (() => {
     "SV22（Dyson V15 Detect）": { motor: 25200 }
   };
   const dysonSymptoms = {
-    "赤ランプ点灯": "battery",
-    "充電されない": "battery",
-    "青ランプ点滅しない": "battery",
-    "充電の減りが早い": "battery",
-    "フィルター詰まりマークが消えない": "filter",
-    "ヘッドローラー（ブラシ）が回らない": "head",
-    "動作しない（まったく動かない）": "motor",
-    "動作不良（一瞬動くがすぐ止まる）": "motor",
+    "赤ランプ点灯": ["battery", "バッテリー交換"],
+    "充電されない": ["battery", "バッテリー交換"],
+    "青ランプ点滅しない": ["battery", "バッテリー交換"],
+    "充電の減りが早い": ["battery", "バッテリー交換"],
+    "フィルター詰まりマークが消えない": ["filter", "フィルター交換"],
+    "ヘッドローラー（ブラシ）が回らない": ["head", "ヘッド修理"],
+    "動作しない（まったく動かない）": ["motor", "モーター修理"],
+    "動作不良（一瞬動くがすぐ止まる）": ["motor", "モーター修理"],
     "液晶が表示されない": null,
-    "吸引力の低下": "cyclone",
-    "異臭がする": "cyclone"
+    "吸引力の低下": ["cyclone", "サイクロンクリーニング"],
+    "異臭がする": ["cyclone", "サイクロンクリーニング"]
   };
   Object.entries(dysonModels).forEach(([model, menu]) => {
     Object.entries(dysonSymptoms).forEach(([symptom, repair]) => {
-      set("ダイソン", model, "症状", symptom, repair && menu[repair] ? menu[repair] : confirm);
+      const [repairKey, repairMenu] = repair || [];
+      set("ダイソン", model, "症状", symptom, repairKey && menu[repairKey] ? menu[repairKey] : confirm, repairMenu);
     });
   });
 
@@ -52,16 +56,16 @@ window.SWEEPMASTER_DEFAULTS = (() => {
     "ルンバコンボ j9+": { battery: 13000, tires: confirm, cliff: confirm, front: confirm, edge: 15000, board: "45,000円～", bumper: 10000 }
   };
   const roombaSymptoms = {
-    "充電が溜まらない": "battery",
-    "タイヤが回らない": "tires",
+    "充電が溜まらない": ["battery", "バッテリー交換"],
+    "タイヤが回らない": ["tires", "タイヤ交換"],
     "ホームベースに戻らない": null,
-    "真っ直ぐ進まない": "tires",
-    "段差判定になる": "cliff",
-    "勢いよく壁にぶつかる": "front",
-    "起動しない": "board",
-    "バンパーを数回たたいてください": "bumper",
+    "真っ直ぐ進まない": ["tires", "タイヤ交換"],
+    "段差判定になる": ["cliff", "段差センサー修理"],
+    "勢いよく壁にぶつかる": ["front", "前方センサー修理"],
+    "起動しない": ["board", "基板交換"],
+    "バンパーを数回たたいてください": ["bumper", "バンパー調整"],
     "アプリに接続できない": null,
-    "エッジブラシが回らない": "edge"
+    "エッジブラシが回らない": ["edge", "エッジモーター修理"]
   };
   const roombaErrorCodes = [
     "エラー7", "エラー8", "エラー9", "エラー10", "エラー11",
@@ -70,14 +74,18 @@ window.SWEEPMASTER_DEFAULTS = (() => {
   ];
   Object.entries(roombaModels).forEach(([model, menu]) => {
     Object.entries(roombaSymptoms).forEach(([symptom, repair]) => {
-      set("ルンバ", model, "症状", symptom, repair && menu[repair] ? menu[repair] : confirm);
+      const [repairKey, repairMenu] = repair || [];
+      set("ルンバ", model, "症状", symptom, repairKey && menu[repairKey] ? menu[repairKey] : confirm, repairMenu);
     });
-    roombaErrorCodes.forEach((errorCode) => set("ルンバ", model, "エラーコード", errorCode, confirm));
+    roombaErrorCodes.forEach((errorCode) => set("ルンバ", model, "エラーコード", errorCode, confirm, "エラーコードに基づき診断"));
   });
 
   return {
     get(maker, model, type, item) {
       return prices[[maker, model, type, item].join("\t")] ?? null;
+    },
+    getRepairMenu(maker, model, type, item) {
+      return repairMenus[[maker, model, type, item].join("\t")] || "診断後に確定";
     }
   };
 })();

@@ -117,6 +117,7 @@
     <section class="result" id="result" hidden>
       <p class="result-label">概算見積り（税込）</p>
       <p class="price" id="price"></p>
+      <p class="detail" id="repairMenu"></p>
       <p class="detail" id="detail"></p>
       <button type="button" id="copyButton">見積り内容をコピー</button>
     </section>
@@ -251,6 +252,7 @@
     const symptomSelect = document.querySelector("#symptom");
     const result = document.querySelector("#result");
     const price = document.querySelector("#price");
+    const repairMenu = document.querySelector("#repairMenu");
     const detail = document.querySelector("#detail");
     const copyButton = document.querySelector("#copyButton");
     applyDefaultPrices();
@@ -376,6 +378,9 @@
       const amount = selectedErrorCode
         ? ROOMBA_ERROR_PRICE_LIST[modelSelect.value][selectedErrorCode]
         : PRICE_LIST[makerSelect.value][modelSelect.value][selectedSymptom];
+      const selectedType = selectedErrorCode ? "エラーコード" : "症状";
+      const selectedItem = selectedErrorCode || selectedSymptom;
+      repairMenu.textContent = `想定修理メニュー: ${window.SWEEPMASTER_DEFAULTS.getRepairMenu(makerSelect.value, modelSelect.value, selectedType, selectedItem)}`;
       if (amount === null || amount === undefined || amount === "") {
         const errorCode = isRoomba && errorCodeSelect.value
           ? ` / ${errorCodeSelect.value}`
@@ -404,7 +409,7 @@
     });
 
     copyButton.addEventListener("click", async () => {
-      const text = `【修理概算見積り】\n${detail.textContent}\n税込 ${price.textContent}`;
+      const text = `【修理概算見積り】\n${detail.textContent}\n${repairMenu.textContent}\n税込 ${price.textContent}`;
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(text);
       } else {
