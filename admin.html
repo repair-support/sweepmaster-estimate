@@ -11,7 +11,7 @@
     main { width: min(100%, 1100px); margin: 0 auto; padding: 24px; border-radius: 18px; background: #fff; box-shadow: 0 10px 30px rgba(15, 23, 42, .08); }
     h1 { margin: 0 0 8px; font-size: 24px; }
     p { color: #475569; font-size: 14px; line-height: 1.7; }
-    .controls { display: grid; grid-template-columns: 1fr 170px 220px 170px 260px; gap: 10px; margin: 20px 0; }
+    .controls { display: grid; grid-template-columns: 1fr 170px 170px 280px; gap: 10px; margin: 20px 0; }
     input, select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; font-size: 14px; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     th, td { padding: 9px 8px; border-bottom: 1px solid #e2e8f0; text-align: left; }
@@ -48,9 +48,6 @@
         <option value="ダイソン">ダイソン</option>
         <option value="ルンバ">ルンバ</option>
       </select>
-      <select id="model">
-        <option value="">全機種</option>
-      </select>
       <select id="type">
         <option value="">全種別</option>
         <option value="症状">症状</option>
@@ -85,7 +82,6 @@
     const password = document.querySelector("#password");
     const search = document.querySelector("#search");
     const maker = document.querySelector("#maker");
-    const model = document.querySelector("#model");
     const type = document.querySelector("#type");
     const item = document.querySelector("#item");
     const setupMessage = document.querySelector("#setupMessage");
@@ -122,7 +118,6 @@
       tbody.innerHTML = "";
       rows.filter((row) => {
         return (!maker.value || row.maker === maker.value)
-          && (!model.value || row.model === model.value)
           && (!type.value || row.type === type.value)
           && (!item.value || row.item === item.value)
           && (!keyword || `${row.model} ${row.item}`.toLowerCase().includes(keyword));
@@ -163,9 +158,7 @@
 
     function updateFilterOptions() {
       const makerRows = rows.filter((row) => !maker.value || row.maker === maker.value);
-      setFilterOptions(model, makerRows.map((row) => row.model), "全機種");
-      const modelRows = makerRows.filter((row) => !model.value || row.model === model.value);
-      const typeRows = modelRows.filter((row) => !type.value || row.type === type.value);
+      const typeRows = makerRows.filter((row) => !type.value || row.type === type.value);
       setFilterOptions(item, typeRows.map((row) => row.item), "全症状・エラーコード");
       render();
     }
@@ -230,7 +223,6 @@
     document.querySelector("#reloadButton").addEventListener("click", loadPrices);
     search.addEventListener("input", render);
     maker.addEventListener("change", updateFilterOptions);
-    model.addEventListener("change", updateFilterOptions);
     type.addEventListener("change", updateFilterOptions);
     item.addEventListener("change", render);
     setupMessage.hidden = Boolean(config.adminApiUrl);
